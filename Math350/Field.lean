@@ -41,7 +41,9 @@ lemma one_mul (a : F) : 1 * a = a :=
 -- do the same for multiplication
 -- here `ha` is a *proof* that `a ≠ 0`, which we will need to use at some point
 lemma inv_mul {a : F} (ha : a ≠ 0) : a⁻¹ * a = 1 :=
-  sorry
+  calc 
+    a⁻¹ * a = a * a⁻¹ := by rw [mul_comm]
+    _       = 1       := by rw [mul_inv ha]
 
 lemma right_distrib (a b c : F) : (a + b) * c = a * c + b * c :=
   sorry

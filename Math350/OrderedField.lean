@@ -28,7 +28,7 @@ lemma mul_lt_mul_left {a b : F} : a < b → (∀ {c}, 0 < c → c * a < c * b) :
   assume c
   rw [mul_comm c a, mul_comm c b]
   apply mul_lt_mul_right
-  exact h
+  exact h 
 
 lemma trichotomy (a b : F) : b < a ∨ a = b ∨ a < b := by
   rw [←le_iff_eq_or_lt]
