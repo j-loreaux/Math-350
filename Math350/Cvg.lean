@@ -9,12 +9,56 @@ set_option autoImplicit false
 
 namespace Hidden
 
+/-! # Sequences and convergence
+
+A *sequence* is simply a function `a : ℕ → ℝ`, but instead of writing the values of the
+function as `a(0), a(1), a(2), ...`, in mathematics textbooks, we generally write them
+as `a₀, a₁, a₂, ...`. In Lean, we write them `a 0, a 1, a 2, ...`.
+
+In this section, we will examine convergence and divergence of sequences, along with 
+special properties.
+
+Note: we will often consider quantities like `|x - y|`. You should always think of this
+intuitively as the *distance* between `x` and `y`. In fact, in most of what follows, 
+you can replace `|x - y|` with `d(x, y)` where `d : X × X → ℝ` is a *distance function*
+(also called a *metric*; here `X` is basically any set you want to consider), that
+satisfies, for all `x y z : X` :
+
+1. `0 ≤ d(x, y)`.
+2. `0 = d(x, y) ↔ x = y`.
+3. `d(x, y) = d(y, x)`.
+4. `d(x, z) ≤ d(x, y) + d(y, z)` -- the *triangle inequality*
+
+Some common examples of metrics are:
+
++ on `ℝ`: `d(x, y) = |x - y|`
++ on `ℝ²`: `d((x₁, x₂), (y₁, y₂)) = Real.sqrt (|x₁ - y₁| ^ 2 + |x₂ - y₂| ^ 2)`
++ on `ℝⁿ`: `d((x₁,⋯,xₙ), (y₁,⋯,yₙ)) = Real.sqrt (∑ k ∈ {1,⋯,n}, |xₖ - yₖ∣ ^ 2)`
++ on `ℝ²`: `d((x₁, x₂), (y₁, y₂)) = |x₁ - y₁| + |x₂ - y₂|`
++ on `ℝ²`: `d((x₁, x₂), (y₁, y₂)) = max (|x₁ - y₁|) (|x₂ - y₂|)`
+
+So convergence makes sense whenever we have a notion of distance. In fact, it makes sense
+in even more generality than that, but the distance version is the easiest generalization
+to make as a first step.
+-/
+
+/-- A sequence is *cauchy* if, for every `ε > 0`, there is some `N : ℕ`, such that for all 
+`n, m ≥ N`, `|a n - a m| < ε`.
+
+This means, for any distance `ε > 0`, *eventually* the terms in the sequence are all
+within a distance `ε` of each other. -/
 def Cauchy (a : ℕ → ℝ) : Prop :=
 ∀ ε > 0, ∃ N : ℕ, ∀ n m, n ≥ N → m ≥ N → |a n - a m| < ε
 
+/-- A sequence `a : ℕ → ℝ` *converges to `L : ℝ`* (called the *limit*) if, 
+for every `ε > 0`, there is some `N : ℕ`, such that for all `n, m ≥ N`, `|a n - L| < ε`.
+
+This means, for any distance `ε > 0`, *eventually* the terms in the sequence are all 
+within a distance `ε` of `L`. -/
 def CvgsTo (a : ℕ → ℝ) (L : ℝ) : Prop :=
 ∀ ε > 0, ∃ N : ℕ, ∀ n ≥ N, |a n - L| < ε
 
+/-- `1 / n → 0`. -/
 lemma cvgsTo_one_div_nat : CvgsTo (fun n ↦ 1 / n) 0 := by
   rw [CvgsTo]
   intro ε hε
@@ -28,20 +72,25 @@ lemma cvgsTo_one_div_nat : CvgsTo (fun n ↦ 1 / n) 0 := by
   rw [one_div]
   exact (inv_le_inv k_pos (by positivity)).mpr (by exact_mod_cast hk)
 
+/-- The constant function which takes the value `A` converges to `A`. -/
 @[simp]
 lemma cvgsTo_const (A : ℝ) : CvgsTo (Function.const ℕ A) A :=
   fun ε hε => ⟨0, by simpa using hε⟩
 
+/-- The constant function which takes the value `A` converges to `A`. -/
 @[simp]
 lemma cvgsTo_const' (A : ℝ) : CvgsTo (fun _ ↦ A) A :=
   cvgsTo_const A
 
+/-- The constant function which takes the value `0` converges to `0`. -/
 @[simp]
 lemma cvgsTo_const_zero : CvgsTo 0 0 := cvgsTo_const 0
 
+/-- The constant function which takes the value `1` converges to `1`. -/
 @[simp]
 lemma cvgsTo_const_one : CvgsTo 1 1 := cvgsTo_const 1
 
+/-- Convergent sequences are cauchy. -/
 lemma CvgsTo.cauchy {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) : Cauchy a := by
   intros ε hε
   obtain ⟨N, hN⟩ := ha (ε / 2) (by positivity)
@@ -53,6 +102,7 @@ lemma CvgsTo.cauchy {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) : Cauchy a := 
     _           < ε / 2 + ε / 2         := add_lt_add (hN n hn) (hN m hm)
     _           = ε := add_halves ε
 
+/-- (The range of) a cauchy sequence is bounded. -/
 lemma Cauchy.bounded {a : ℕ → ℝ} (ha : Cauchy a) : Metric.Bounded (Set.range a) := by
   obtain ⟨N, hN⟩ := ha 1 one_pos
   have := ((Finset.range N).finite_toSet.image a).bounded
@@ -67,9 +117,11 @@ lemma Cauchy.bounded {a : ℕ → ℝ} (ha : Cauchy a) : Metric.Bounded (Set.ran
     apply Metric.closedBall_subset_closedBall (le_max_right _ _) <|
       by simpa using (hN n N hn le_rfl).le
 
+/-- `(a n → 0) ↔ (|a n| → 0)-/
 lemma cvgsTo_zero_iff_abs {a : ℕ → ℝ} : CvgsTo a 0 ↔ CvgsTo (fun n ↦ |a n|) 0 := by
   simp only [CvgsTo, sub_zero, abs_abs]
 
+/-- If `a n → A` and `b n → B`, then `a n + b n → A + B`. -/
 lemma CvgsTo.add {a b : ℕ → ℝ} {A B : ℝ} (ha : CvgsTo a A) (hb : CvgsTo b B) :
     CvgsTo (a + b) (A + B) := by
   simp only [CvgsTo] at *
@@ -86,10 +138,13 @@ lemma CvgsTo.add {a b : ℕ → ℝ} {A B : ℝ} (ha : CvgsTo a A) (hb : CvgsTo 
     _                     < ε / 2 + ε / 2 := add_lt_add (hN₁ n hn₁) (hN₂ n hn₂)
     _                     = ε             := add_halves ε
 
+/-- `a n → A ↔ (a n - A) → 0`. -/
 lemma cvgsTo_iff_cvgsTo_zero {a : ℕ → ℝ} {A : ℝ} :
     CvgsTo a A ↔ CvgsTo (fun n ↦ a n - A) 0 := by
   simp only [CvgsTo, sub_zero] at *
 
+/-- This is an equivalent condition for convergence where we only have to be less
+than a constant factor multiplied by `ε` (e.g., `37 * ε`).-/
 lemma cvgsTo_iff_const_mul {a : ℕ → ℝ} {A : ℝ} {c : ℝ} (hc : 0 < c) :
     CvgsTo a A ↔ ∀ ε > 0, ∃ N : ℕ, ∀ n ≥ N, |a n - A| < c * ε := by
   constructor
@@ -99,6 +154,8 @@ lemma cvgsTo_iff_const_mul {a : ℕ → ℝ} {A : ℝ} {c : ℝ} (hc : 0 < c) :
     use N
     simpa only [mul_inv_cancel_left₀ hc.ne'] using hN
 
+/-- This is an equivalent condition for convergence where we only have to be 
+less than *or equal* to `ε`. -/
 lemma cvgsTo_iff_forall_le {a : ℕ → ℝ} {A : ℝ} :
     CvgsTo a A ↔ ∀ ε > 0, ∃ N : ℕ, ∀ n ≥ N, |a n - A| ≤ ε := by
   constructor
@@ -111,6 +168,7 @@ lemma cvgsTo_iff_forall_le {a : ℕ → ℝ} {A : ℝ} :
     use N
     exact fun n hn => (hN n hn).trans_lt (by linarith)
 
+/-- If `a n → 0` and `b n` is bounded, then `(a n * b n) → 0`. -/
 lemma CvgsTo.zero_mul {a b : ℕ → ℝ} (ha : CvgsTo a 0)
     (hb : Metric.Bounded (Set.range b)) : CvgsTo (a * b) 0 := by
   obtain ⟨r, hr⟩ := (Metric.bounded_iff_subset_ball 0).mp hb
@@ -129,6 +187,7 @@ lemma CvgsTo.zero_mul {a b : ℕ → ℝ} (ha : CvgsTo a 0)
     _     < r + 1 := lt_add_one r
     _     ≤ max (r + 1) 1 := le_max_left _ _
 
+/-- If `a n → A` and `C` is a constant, then `C * a n → C * A`. -/
 lemma CvgsTo.const_mul {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) (C : ℝ) :
     CvgsTo (fun n ↦ C * a n) (C * A) := by
   by_cases hC : C = 0
@@ -142,19 +201,26 @@ lemma CvgsTo.const_mul {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) (C : ℝ) :
     rw [←mul_sub, abs_mul]
     exact (mul_lt_mul_left hC).mpr <| hN n hn
 
+/-- If `a n → A` and `C` is a constant, then `a n * C → A * C`. -/
 lemma CvgsTo.mul_const {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) (C : ℝ) :
     CvgsTo (fun n ↦ a n * C) (A * C) := by
   simpa only [mul_comm _ C] using ha.const_mul C
 
+/-- If `a n → A`, then `-(a n) → -A`. -/
 lemma CvgsTo.neg {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) :
     CvgsTo (-a) (-A) := by
   rw [neg_eq_neg_one_mul a, neg_eq_neg_one_mul A]
   exact ha.const_mul (-1)
 
+/-- If `a n → A` and `b n → B`, then `a n - b n → A - B`. -/
 lemma CvgsTo.sub {a b : ℕ → ℝ} {A B : ℝ} (ha : CvgsTo a A) (hb : CvgsTo b B) :
     CvgsTo (a - b) (A - B) := by
   simpa only [sub_eq_add_neg] using ha.add hb.neg
 
+/-- If `a n → A` and `b n → B`, then `a n * b n → A * B`.
+
+This is a surprisingly tricky theorem! Note how much simpler this argument is than the one
+which is given in the book. -/
 lemma CvgsTo.mul {a b : ℕ → ℝ} {A B : ℝ} (ha : CvgsTo a A) (hb : CvgsTo b B) :
     CvgsTo (a * b) (A * B) := by
   have : a * b = (a · - A) * (b · - B) + (A * b ·) + (a · * B) - (fun _ ↦ A * B) := by
