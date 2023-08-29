@@ -18,7 +18,9 @@ as `a₀, a₁, a₂, ...`. In Lean, we write them `a 0, a 1, a 2, ...`.
 In this section, we will examine convergence and divergence of sequences, along with 
 special properties.
 
-Note: we will often consider quantities like `|x - y|`. You should always think of this
+## Distances and generalization
+
+We will often consider quantities like `|x - y|`. You should always think of this
 intuitively as the *distance* between `x` and `y`. In fact, in most of what follows, 
 you can replace `|x - y|` with `d(x, y)` where `d : X × X → ℝ` is a *distance function*
 (also called a *metric*; here `X` is basically any set you want to consider), that
@@ -231,6 +233,7 @@ lemma CvgsTo.mul {a b : ℕ → ℝ} {A B : ℝ} (ha : CvgsTo a A) (hb : CvgsTo 
   simpa using (((ha'.zero_mul hb').add (hb.const_mul A)).add (ha.mul_const B)).sub <|
     cvgsTo_const (A * B)
 
+/-- If `a n → A` and `A ≠ 0`, then *eventually* `|A| / 2 < |a n|`. -/
 lemma eventually_lt_abs_of_not_cvgsTo_zero {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) (hA : A ≠ 0) :
     ∃ N : ℕ, ∀ n ≥ N, |A| / 2 < |a n| := by
   replace hA := abs_pos.mpr hA
@@ -242,13 +245,14 @@ lemma eventually_lt_abs_of_not_cvgsTo_zero {a : ℕ → ℝ} {A : ℝ} (ha : Cvg
   replace hN := (abs_sub_abs_le_abs_sub _ _).trans_lt hN
   linarith
 
+/-- If `a n → A` and `p : ℕ`, then `(a n) ^ p → A ^ p`. -/
 lemma CvgsTo.pow {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) (p : ℕ) :
     CvgsTo (a ^ p) (A ^ p) := by
   induction p with
   | zero => simp
   | succ k hk => simpa [pow_succ] using ha.mul hk
 
-
+/-- If `a n → A` and `A ≠ 0`, then `(a n)⁻¹ → A⁻¹`. -/
 lemma CvgsTo.inv {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) (hA : A ≠ 0) :
     CvgsTo a⁻¹ A⁻¹ := by
   obtain ⟨N₁, hN₁⟩ := eventually_lt_abs_of_not_cvgsTo_zero ha hA
@@ -271,16 +275,19 @@ lemma CvgsTo.inv {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) (hA : A ≠ 0) :
     _               < 2 / |A| ^ 2 * ε := by
       exact (mul_lt_mul_left (by positivity)).mpr (hN₂ n <| (le_max_right _ _).trans hn)
 
+/-- If `a n → A` and `b n → B` and `B ≠ 0`, then `(a n) / (b n) → A / B`. -/
 lemma CvgsTo.div {a b : ℕ → ℝ} {A B : ℝ} (ha : CvgsTo a A) (hb : CvgsTo b B) (hB : B ≠ 0) :
     CvgsTo (a / b) (A / B) := by
   simpa only [div_eq_mul_inv] using ha.mul <| hb.inv hB
 
+/-- If `a n → A` and `A ≠ 0` and `k : ℤ`, then `(a n) ^ k → A ^ k`. -/
 lemma CvgsTo.zpow {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) (hA : A ≠ 0) (k : ℤ) :
     CvgsTo (a ^ k) (A ^ k) := by
   cases k with
   | ofNat p => exact ha.pow p
   | negSucc p => simpa only [zpow_negSucc] using (ha.pow <| p + 1).inv <| pow_ne_zero (p + 1) hA
 
+/-- If `a n = b n` except for finitely many `n`, and `a n → A`, then `b n → A`. -/
 lemma CvgsTo.of_finite_ne {a b : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) (h : {n | a n ≠ b n}.Finite) :
     CvgsTo b A := by
   obtain ⟨N, hN⟩ := h.bddAbove
@@ -294,6 +301,7 @@ lemma CvgsTo.of_finite_ne {a b : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) (h : {
   rw [←hN n ((le_max_left _ _).trans hn)]
   exact hM n ((le_max_right _ _).trans hn)
 
+/-- `a n → A` if and only if `a (n + k) → A` for any fixed `k : ℕ`. -/
 lemma CvgsTo_iff_tail {a : ℕ → ℝ} {A : ℝ} (k : ℕ) : CvgsTo a A ↔ CvgsTo (fun n ↦ a (n + k)) A := by
   constructor
   · intro ha ε hε
@@ -310,12 +318,15 @@ lemma CvgsTo_iff_tail {a : ℕ → ℝ} {A : ℝ} (k : ℕ) : CvgsTo a A ↔ Cvg
     specialize hN (n - k) hn
     simpa [Nat.sub_add_cancel hnk] using hN
 
+/-- `1 / (n + 1) → 0` -/
 lemma cvgsTo_one_div_nat_succ : CvgsTo (fun n ↦ 1 / (n + 1)) 0 := by
   convert (CvgsTo_iff_tail 1).mp cvgsTo_one_div_nat
   simp
 
+/-- A sequence is said to *diverge* if it doesn't converge to any value. -/
 def Dvgs (a : ℕ → ℝ) : Prop := ∀ A, ¬ CvgsTo a A
 
+/-- The sequence `(-1) ^ n` diverges. -/
 lemma neg_one_pow_dvgs : Dvgs ((-1) ^ ·) := by
   intro A
   by_cases hA : A ≤ 0
@@ -336,6 +347,7 @@ lemma neg_one_pow_dvgs : Dvgs ((-1) ^ ·) := by
     rw [abs_of_nonpos (by linarith)]
     linarith
 
+/-- The limit of a sequence is unique. That is, if `a n → A` and `a n → B`, then `A = B`. -/
 lemma CvgsTo.unique {a : ℕ → ℝ} {A B : ℝ} (ha : CvgsTo a A) (ha' : CvgsTo a B) : A = B := by
   have : ∀ C, CvgsTo 0 C → C = 0 := by
     intro C hC
@@ -348,8 +360,17 @@ lemma CvgsTo.unique {a : ℕ → ℝ} {A B : ℝ} (ha : CvgsTo a A) (ha' : CvgsT
     simpa using hN
   exact sub_eq_zero.mp (this _ <| by simpa using ha.sub ha')
 
-set_option maxHeartbeats 0
 
+/-! ## Subsequences
+
+A *subsequence* of a sequence `a` is just the composition of `a` with a stricitly increasing
+function `φ : ℕ → ℕ`. For example, if `φ n = 2 * n` (which is strictly increasing), then 
+`a ∘ φ` is the sequence `a₀, a₂, a₄, a₆, ⋯`.
+
+Somewhat confusingly, in mathematics textbooks, we refer to subsequences using double subscripts.
+-/
+
+/-- If `a n → A`, any subsequence also converges to `A`. -/
 lemma CvgsTo.subseq {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) {φ : ℕ → ℕ} (hφ : StrictMono φ) :
     CvgsTo (a ∘ φ) A := by
   intro ε hε
@@ -358,6 +379,11 @@ lemma CvgsTo.subseq {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) {φ : ℕ → 
   intro n hn
   exact hN (φ n) (hn.trans <| hφ.id_le n)
 
+/-- If two subsequences of `a : ℕ → ℝ` converge to `A` and `B`, respectively, and `A ≠ B`, then
+the full sequence diverges.
+
+Note: this is often easier to check than using the definition of divergence explicitly.
+See the example which follows. -/
 lemma dvgs_of_cvgsTo_of_cvgsTo {a : ℕ → ℝ} {A B : ℝ} {φ ψ : ℕ → ℕ} (hφ : StrictMono φ)
     (hψ : StrictMono ψ) (ha : CvgsTo (a ∘ φ) A) (hb : CvgsTo (a ∘ ψ) B) (hAB : A ≠ B) :
     Dvgs a :=
@@ -372,16 +398,36 @@ example : Dvgs ((-1) ^ ·) := by
   · exact strictMono_mul_left_of_pos two_pos
   · exact (strictMono_mul_left_of_pos (two_pos : (0 : ℕ) < 2)).add_const 1
 
+/-- The sequence `(-1) ^ n` diverges. (with a new and easier proof) -/
+example : Dvgs ((-1) ^ ·) := by
+  apply dvgs_of_cvgsTo_of_cvgsTo (A := 1) (B := -1) (φ := (2 * ·)) (ψ := (2 * · + 1))
+  · refine strictMono_mul_left_of_pos ?hφ.ha -- found with `apply?`
+    norm_num -- `norm_num` can show `0 < 2`
+  · refine StrictMono.add_const ?hψ.hf 1 -- found with `apply?`
+    refine strictMono_mul_left_of_pos ?hψ.hf.ha -- found with `apply?`
+    norm_num -- `norm_num` can show `0 < 2`
+  · convert cvgsTo_const' 1; simp -- this subsequence is constant (by `simp`), so it converges`
+  · convert cvgsTo_const' (-1); simp [pow_succ] /- this subsequence is constant (by `simp`), so
+    it converges. -/
+  · norm_num -- `norm_num` can show `1 ≠ -1`
+
+/-- This is an equivalent condition to say that (rhe range of) a sequence is bounded.
+In practice, this may be easier to check. -/
 lemma range_bounded_iff {a : ℕ → ℝ} :
     Metric.Bounded (Set.range a) ↔ ∃ M, ∀ n, |a n| ≤ M := by
   simp_rw [Metric.bounded_iff_subset_ball (0 : ℝ), Set.range_subset_iff, Metric.mem_closedBall,
     Real.dist_eq, sub_zero]
 
+/-- Up until now, we have been using the phrase "eventually* in a somewhat lackadaisical manner,
+but now we'll make it more precise. A predicate `P : ℕ → Prop` is said to hold *eventually* if it 
+always holds after some `N : ℕ`. -/
 def Eventually (P : ℕ → Prop) : Prop := ∃ N : ℕ, ∀ n ≥ N, P n
 
+/-- If a predicate is always true, it is eventually true. -/
 lemma eventually_of_forall {P : ℕ → Prop} (h : ∀ n, P n) : Eventually P :=
   ⟨0, fun n _ => h n⟩
 
+/-- `P ∧ Q` is true eventually if and only if, individually, `P` and `Q` are eventually true. -/
 lemma eventually_and {P Q : ℕ → Prop} :
     Eventually (fun n => P n ∧ Q n) ↔ Eventually P ∧ Eventually Q := by
   constructor
@@ -391,20 +437,24 @@ lemma eventually_and {P Q : ℕ → Prop} :
     exact ⟨max N₁ N₂, fun n hn =>
       ⟨hN₁ n ((le_max_left _ _).trans hn), hN₂ n ((le_max_right _ _).trans hn)⟩⟩
 
+/-- This is the `←` direction of `eventually_and`. -/
 lemma Eventually.and {P Q : ℕ → Prop} (hP : Eventually P) (hQ : Eventually Q) :
     Eventually (fun n => P n ∧ Q n) :=
   eventually_and.mpr ⟨hP, hQ⟩
 
+/-- If `P n` always implies `Q n`, and `P` is true eventually, then `Q` is true eventually. -/
 lemma Eventually.imp_of_forall {P Q : ℕ → Prop} (h : ∀ n, P n → Q n) (hP : Eventually P) :
     Eventually Q := by
   obtain ⟨N, hN⟩ := hP
   exact ⟨N, fun n hn => h n (hN n hn)⟩
 
+/-- If eventually `P n → Q n`, and eventually `P n`, then eventually `Q n`. -/
 lemma Eventually.imp {P Q : ℕ → Prop} (h : Eventually (fun n => P n → Q n))
     (hP : Eventually P) : Eventually Q := by
   refine (h.and hP).imp_of_forall ?_
   exact fun n hn => hn.1 hn.2
 
+/-- If `a n → A` and `a n` is eventually nonnegative, then `A` is nonnegative. -/
 lemma CvgsTo.nonneg_of_eventually_nonneg {a : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A)
     (h : Eventually (0 ≤ a ·)) : 0 ≤ A := by
   obtain ⟨N, hN⟩ := h
@@ -417,12 +467,23 @@ lemma CvgsTo.nonneg_of_eventually_nonneg {a : ℕ → ℝ} {A : ℝ} (ha : CvgsT
   linarith
 
 
+/-- If `a n → A` and `b n → B` and eventually `a n ≤ b n`, then `A ≤ B`.
+
+The following example shows that we *cannot* replace `≤` with `<` everywhere in this theorem. -/
 lemma CvgsTo.le_of_eventually_le {a b : ℕ → ℝ} {A B : ℝ} (ha : CvgsTo a A) (hb : CvgsTo b B)
     (h : Eventually (fun n => a n ≤ b n)) : A ≤ B := by
   simp (config := { singlePass := false }) [←sub_nonneg] at h ⊢
   simp [-sub_nonneg] at h ⊢
   exact (hb.sub ha).nonneg_of_eventually_nonneg h
 
+/-- This example shows that that there are sequences `a b` with `a n < b n` eventually, but for
+which the sequences converge to the same limit. Just set `a n = - 1 / n` and `b n = 1 / n`. -/
+example : ∃ (a b : ℕ → ℝ) (A : ℝ), CvgsTo a A ∧ CvgsTo b A ∧ Eventually (fun n => a n < b n) :=
+  ⟨_, _, 0, by simpa using cvgsTo_one_div_nat.neg, cvgsTo_one_div_nat,
+    ⟨1, fun n => by simpa using id⟩⟩
+
+/-- **Squeeze Theorem**. If `a n → A` and `c n → A`, and eventually `a n ≤ b n ≤ c n`, then
+`b n → A` as well. Note: we do *not* need to know *a priori* and `b` converges. -/
 lemma CvgsTo.squeeze {a b c : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) (hc : CvgsTo c A)
     (h : Eventually (fun n => a n ≤ b n ∧ b n ≤ c n)) : CvgsTo b A := by
   intro ε hε
@@ -440,18 +501,37 @@ lemma CvgsTo.squeeze {a b c : ℕ → ℝ} {A : ℝ} (ha : CvgsTo a A) (hc : Cvg
       · linarith
       · linarith
 
+/-- In order to show that `a n → A`, it suffices to show that the difference `|a n - A|` is
+eventually bounded by a sequence converging to zero.
+
+Note that essentially, this just allows us to prove that if some converges faster than 
+another sequence converges to zero, it must converge. See the next example. -/
 lemma CvgsTo.of_eventually_abs_le {a b : ℕ → ℝ} {A : ℝ} (hb : CvgsTo b 0)
     (h : Eventually (fun n => |a n - A| ≤ b n)) : CvgsTo a A := by
   rw [cvgsTo_iff_cvgsTo_zero, cvgsTo_zero_iff_abs]
   refine cvgsTo_const_zero.squeeze hb ?_
   exact h.imp_of_forall fun n hn => ⟨abs_nonneg _, hn⟩
 
-example : ∃ (a b : ℕ → ℝ) (A : ℝ), CvgsTo a A ∧ CvgsTo b A ∧ Eventually (fun n => a n < b n) :=
-  ⟨_, _, 0, by simpa using cvgsTo_one_div_nat.neg, cvgsTo_one_div_nat,
-    ⟨1, fun n => by simpa using id⟩⟩
+/-- `1 / (2 ^ n) → 0`, using the previous theorem. -/
+example : CvgsTo (1 / 2 ^ ·) 0 := by
+  apply cvgsTo_one_div_nat.of_eventually_abs_le
+  use 1
+  intro n hn
+  simp only [one_div, sub_zero]
+  rw [abs_of_nonneg]
+  · rw [inv_le_inv (by positivity) (by positivity)]
+    induction n, hn using Nat.le_induction
+    · norm_num
+    · simp only [Nat.cast_add, Nat.cast_one, pow_succ, two_mul]
+      gcongr
+      exact (by norm_num : (1 : ℝ) ≤ 2 ^ 1).trans <| pow_le_pow (by norm_num) (by assumption)
+  · positivity
 
+/-- A sequence `a` is said to *diverge to infinity* if for every `M`, eventually `M ≤ a n`. -/
 def DvgsToInfty (a : ℕ → ℝ) : Prop := ∀ M, Eventually (M ≤ a ·)
 
+/-- To show a sequence diverges to infinity, it suffices to show that it eventually exceeds any 
+*positive* `M`. -/
 lemma dvgsToInfty_iff {a : ℕ → ℝ} : DvgsToInfty a ↔ ∀ M > 0, Eventually (M ≤ a ·) := by
   constructor
   · exact fun h M _ => h M
@@ -462,6 +542,7 @@ lemma dvgsToInfty_iff {a : ℕ → ℝ} : DvgsToInfty a ↔ ∀ M > 0, Eventuall
       apply (h 1 zero_lt_one).imp_of_forall
       exact fun n hn => (hM.trans zero_le_one).trans hn
 
+/-- A sequence which diverges to infinity diverges.-/
 lemma DvgsToInfty.dvgs {a : ℕ → ℝ} (ha : DvgsToInfty a) : Dvgs a := by
   intro A hA
   specialize ha (A + 1)
@@ -472,12 +553,15 @@ lemma DvgsToInfty.dvgs {a : ℕ → ℝ} (ha : DvgsToInfty a) : Dvgs a := by
   obtain ⟨h₁, h₂⟩ := hN
   linarith [abs_lt.mp h₂]
 
+/-- This is an equivalent condition for the range of a sequence to be bounded below. -/
 lemma Set.range_bddBelow_iff {a : ℕ → ℝ} : BddBelow (Set.range a) ↔ ∃ M, ∀ n, M ≤ a n := by
   simp [BddBelow, Set.Nonempty, mem_lowerBounds]
 
+/-- This is an equivalent condition for the range of a sequence to be bounded above. -/
 lemma Set.range_bddAbove_iff {a : ℕ → ℝ} : BddAbove (Set.range a) ↔ ∃ M, ∀ n, a n ≤ M := by
   simp [BddAbove, Set.Nonempty, mem_upperBounds]
 
+/-- If `a n → +∞` and `b` is bounded below, then `a n + b n → +∞`. -/
 lemma DvgsToInfty.add {a b : ℕ → ℝ} (ha : DvgsToInfty a) (hb : BddBelow (Set.range b)) :
     DvgsToInfty (a + b) := by
   obtain ⟨K, hK⟩ := Set.range_bddBelow_iff.mp hb
@@ -486,6 +570,7 @@ lemma DvgsToInfty.add {a b : ℕ → ℝ} (ha : DvgsToInfty a) (hb : BddBelow (S
   intro n haMK
   simpa using add_le_add haMK (hK n)
 
+/-- If `a n → +∞` and `K > 0` eventually `b n ≥ K`, then `a n * b n → +∞`. -/
 lemma DvgsToInfty.mul {a b : ℕ → ℝ} (ha : DvgsToInfty a) {K : ℝ} (hK : 0 < K)
     (hb : Eventually (K ≤ b ·)) : DvgsToInfty (a * b) := by
   rw [dvgsToInfty_iff]
@@ -495,10 +580,12 @@ lemma DvgsToInfty.mul {a b : ℕ → ℝ} (ha : DvgsToInfty a) {K : ℝ} (hK : 0
   simpa only [div_mul_cancel M hK.ne']
     using mul_le_mul haMK haK hK.le ((div_pos hM hK).le.trans haMK)
 
+/-- If `a n → +∞` and `K > 0`, then `a n * K → +∞`. -/
 lemma DvgsToInfty.const_mul {a : ℕ → ℝ} (ha : DvgsToInfty a) {K : ℝ} (hK : 0 < K) :
     DvgsToInfty (a · * K) :=
   ha.mul hK (⟨0, fun _ _ => le_rfl⟩ : Eventually (fun _ => K ≤ K))
 
+/-- If `a n → +∞` and eventually `a n ≤ b n`, then `b n → +∞`. -/
 lemma DvgsToInfty.of_eventually_le {a b : ℕ → ℝ} (ha : DvgsToInfty a)
     (hb : Eventually (fun n => a n ≤ b n)) : DvgsToInfty b := by
   intro M
@@ -506,12 +593,15 @@ lemma DvgsToInfty.of_eventually_le {a b : ℕ → ℝ} (ha : DvgsToInfty a)
   rintro n ⟨haM, hab⟩
   exact haM.trans hab
 
+/-- A sequence diverges to `-∞` if, for all `M`, eventually `a n ≤ M`. -/
 def DvgsToNegInfty (a : ℕ → ℝ) : Prop := ∀ M, Eventually (a · ≤ M)
 
+/-- A sequence `a n → -∞` if and only if `-(a n) → +∞`. -/
 lemma dvgsToNegInfty_iff {a : ℕ → ℝ} : DvgsToNegInfty a ↔ DvgsToInfty (-a) := by
   simp_rw [DvgsToNegInfty, DvgsToInfty, Pi.neg_apply, le_neg]
   exact ⟨fun h M => h (-M), fun h M => neg_neg M ▸ h (-M)⟩
 
+/-- If `a n → +∞`, then `(a n)⁻¹ → 0`. -/
 lemma DvgsToInfty.cvgsTo_zero {a : ℕ → ℝ} (ha : DvgsToInfty a) : CvgsTo a⁻¹ 0 := by
   rw [cvgsTo_iff_forall_le]
   intro ε hε
@@ -523,6 +613,10 @@ lemma DvgsToInfty.cvgsTo_zero {a : ℕ → ℝ} (ha : DvgsToInfty a) : CvgsTo a�
   simp only [Pi.inv_apply, sub_zero, abs_inv]
   rwa [abs_of_nonneg han.le]
 
+/-- If `a n` is eventually positive, then `a n → +∞` if and only if `(a n)⁻¹ → 0`.
+
+Note that half of this follows directly from the previous theorem, which *doesn't* require the
+sequence to be eventually positive. -/
 lemma dvgsToInfty_iff_inv_cvgsTo_zero {a : ℕ → ℝ} (ha : Eventually (0 < a ·)) :
     DvgsToInfty a ↔ CvgsTo a⁻¹ 0 := by
   constructor
@@ -535,6 +629,7 @@ lemma dvgsToInfty_iff_inv_cvgsTo_zero {a : ℕ → ℝ} (ha : Eventually (0 < a 
     simp only [Pi.inv_apply, sub_zero, abs_of_pos (inv_pos.mpr han)] at haM
     exact ((inv_lt_inv han hM).mp haM).le
 
+/-- For any `-1 ≤ r`, then `1 + n • r ≤ (1 + r) ^ n` for all `n : ℕ`. -/
 lemma bernoulli_inequality {r : ℝ} (hr : -1 ≤ r) : ∀ n : ℕ, 1 + n • r ≤ (1 + r) ^ n
 | 0 => by simp
 | 1 => by simp
@@ -552,12 +647,15 @@ lemma bernoulli_inequality {r : ℝ} (hr : -1 ≤ r) : ∀ n : ℕ, 1 + n • r 
       refine (mul_le_mul_of_nonpos_right ?_ hr'.le)
       exact pow_le_one (n + 1) (by linarith) (by linarith)
 
+/-- An arithmetic sequence (with difference `r > 0`) diverges to infinity. -/
 lemma dvgsTo_arithmetic {r : ℝ} (hr : 0 < r) : DvgsToInfty (· • r) := by
   intro M
   obtain ⟨N, hN⟩ := Archimedean.arch M hr
   use N
   refine fun n hn => hN.trans <| (nsmul_le_nsmul_iff hr).mpr hn
 
+/-- By the `bernoulli_inequality` and the fact that arithmetic sequences diverge to infinity,
+so too do geometric sequences diverge to infinity (when the ratio `r > 1`). -/
 lemma dvgsTo_geometric {r : ℝ} (hr : 1 < r) : DvgsToInfty (r ^ ·) := by
   rw [←add_sub_cancel' 1 r, add_sub_assoc]
   refine DvgsToInfty.of_eventually_le ?_ ⟨0, fun n _ => bernoulli_inequality (by linarith) n⟩
@@ -569,6 +667,7 @@ lemma dvgsTo_geometric {r : ℝ} (hr : 1 < r) : DvgsToInfty (r ^ ·) := by
   ext
   rw [add_comm]
 
+/-- Any geoemtric sequence `r ^ n` with `|r| < 1` conveges to zero. -/
 lemma cvgsTo_geometric {r : ℝ} (hr : |r| < 1) : CvgsTo (r ^ ·) 0 := by
   rw [cvgsTo_zero_iff_abs]
   simp_rw [abs_pow]
@@ -584,6 +683,11 @@ lemma cvgsTo_geometric {r : ℝ} (hr : |r| < 1) : CvgsTo (r ^ ·) 0 := by
     ext
     simp
 
+/-- **Monotone Convergence Theorem**. If `a` is an increasing sequence bounded above by `M`, then
+`a` converges to the supremum of its range.
+
+In the library, `Monotone` means *increasing* and `Antitone` means decreasing, whereas in 
+mathematical textbooks, *monotone* means *increasing or decreasing*. -/
 lemma _root_.Monotone.cvgsTo {a : ℕ → ℝ} (ha : Monotone a) {M : ℝ} (ha' : ∀ n, a n ≤ M) :
     CvgsTo a (iSup a) := by
   have h_bdd : BddAbove (Set.range a) := ⟨M, by rintro _ ⟨n, rfl⟩; exact ha' n⟩
@@ -594,6 +698,8 @@ lemma _root_.Monotone.cvgsTo {a : ℕ → ℝ} (ha : Monotone a) {M : ℝ} (ha' 
   · linarith [hN.trans_le <| ha hn]
   · linarith [le_ciSup h_bdd n]
 
+/-- **Monotone Convergence Theorem**. If `a` is a decreasing sequence bounded below by `M`, then
+`a` converges to the infimum of its range. -/
 lemma _root_.Antitone.cvgsTo {a : ℕ → ℝ} (ha : Antitone a) {M : ℝ} (ha' : ∀ n, M ≤ a n) :
     CvgsTo a (iInf a) := by
   have : CvgsTo (- -a) (-iSup (-a)) := (ha.neg.cvgsTo <| fun n => neg_le_neg (ha' n)).neg
@@ -602,6 +708,11 @@ lemma _root_.Antitone.cvgsTo {a : ℕ → ℝ} (ha : Antitone a) {M : ℝ} (ha' 
     exact this
   · exact ⟨-M, by rintro _ ⟨n, rfl⟩; exact neg_le_neg (ha' n)⟩
 
+/-- **Monotone Convergence Theorem**. If `a` is an increasing sequence whose range is unbounded
+above, then `a → +∞`.
+
+Note: for sequences which are not monotone, the range being unbounded above is *different* from
+the sequence diverging to infinity.  -/
 lemma _root_.Monotone.dvgsToInfty {a : ℕ → ℝ} (ha : Monotone a) (ha' : ∀ M, ∃ n, M < a n) :
     DvgsToInfty a := by
   intro M
@@ -609,6 +720,8 @@ lemma _root_.Monotone.dvgsToInfty {a : ℕ → ℝ} (ha : Monotone a) (ha' : ∀
   refine ⟨N, fun n hn => ?_⟩
   exact hN.le.trans <| ha hn
 
+/-- **Monotone Convergence Theorem**. If `a` is a decreasing sequence whose range is unbounded
+below, then `a → -∞`. -/
 lemma _root_.Monotone.cvgs_or_dvgs {a : ℕ → ℝ} (ha : Monotone a) :
     CvgsTo a (iSup a) ∨ DvgsToInfty a := by
   by_cases ha' : ∃ M, ∀ n, a n ≤ M
@@ -619,9 +732,11 @@ lemma _root_.Monotone.cvgs_or_dvgs {a : ℕ → ℝ} (ha : Monotone a) :
 
 open BigOperators
 
+/-- We gave this fact before, but this is a reminder. -/
 example {r : ℝ} (hr : r ≠ 1) (n : ℕ) : (∑ i in Finset.range n, r ^ i) = (r ^ n - 1) / (r - 1) :=
   geom_sum_eq hr n
 
+/-- When `|r| < 1` the infinite series `1 + r + r ^ 2 + r ^ 3 + ⋯` converges to `1 / (1 - r)`. -/
 example {r : ℝ} (hr : |r| < 1) : CvgsTo (∑ i in Finset.range ·, r ^ i) (1 / (1 - r)) := by
   have hr' : r ≠ 1 := fun h => by rw [h] at hr; norm_num at hr
   simp_rw [geom_sum_eq hr']
@@ -629,6 +744,7 @@ example {r : ℝ} (hr : |r| < 1) : CvgsTo (∑ i in Finset.range ·, r ^ i) (1 /
     (fun _ => hr' <| by linarith)
   convert this using 1
   simp only [one_div, zero_sub, neg_div, neg_inv, neg_sub]
+
 
 noncomputable def nr_sqrt_seq (A a₀ : ℝ) : ℕ → ℝ
 | 0 => a₀
